@@ -45,7 +45,6 @@ public class WindowHelper
 
     public void UpdateClientRect()
     {
-        SetVisible();
         _windowRect = GetClientRect(_hWnd);
     }
 

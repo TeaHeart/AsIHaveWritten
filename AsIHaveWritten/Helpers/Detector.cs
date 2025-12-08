@@ -5,7 +5,6 @@ using Microsoft.ML.OnnxRuntime.Tensors;
 using OpenCvSharp;
 using OpenCvSharp.Extensions;
 using System;
-using System.Diagnostics;
 using System.Drawing;
 
 public class Detector : IDisposable
@@ -14,7 +13,10 @@ public class Detector : IDisposable
 
     public Detector(string modelPath)
     {
-        _session = new InferenceSession(modelPath);
+        var options = new SessionOptions();
+        options.AppendExecutionProvider_DML();
+        options.AppendExecutionProvider_CPU();
+        _session = new InferenceSession(modelPath, options);
     }
 
     public void Dispose()
@@ -24,10 +26,9 @@ public class Detector : IDisposable
 
     public DetResult[] Detect(Bitmap image)
     {
-        var s = Stopwatch.StartNew();
         var inputs = PreProcess(image);
         using var outputs = _session.Run(inputs);
-        var result = PostProcess(outputs);
+        var result = PostProcess(outputs, new(0, 0, image.Width, image.Height));
         return result;
     }
 
@@ -70,7 +71,7 @@ public class Detector : IDisposable
         return [NamedOnnxValue.CreateFromTensor("x", tensor)];
     }
 
-    private DetResult[] PostProcess(IReadOnlyCollection<DisposableNamedOnnxValue> outputs)
+    private DetResult[] PostProcess(IReadOnlyCollection<DisposableNamedOnnxValue> outputs, Rect rect)
     {
         // 一个输出 [-1, 1, -1, -1] 数量，通道，高，宽
         var tensor = (DenseTensor<float>)outputs.First(x => x.Name == "fetch_name_0").Value;
@@ -97,7 +98,6 @@ public class Detector : IDisposable
         }
 
         det.FindContours(out var contours, out var hierarchy, RetrievalModes.External, ContourApproximationModes.ApproxTC89KCOS);
-        var detRect = new Rect(default, det.Size());
 
         return contours.Select(x =>
         {
@@ -110,7 +110,7 @@ public class Detector : IDisposable
             // 扩展矩形
             var expendSize = box.Height / 2;
             box.Inflate(expendSize, expendSize);
-            box &= detRect;
+            box &= rect;
 
             return new DetResult { Box = box, Score = score };
         })

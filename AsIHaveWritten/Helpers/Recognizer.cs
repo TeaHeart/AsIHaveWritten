@@ -5,7 +5,6 @@ using Microsoft.ML.OnnxRuntime.Tensors;
 using OpenCvSharp;
 using OpenCvSharp.Extensions;
 using System;
-using System.Diagnostics;
 using System.Drawing;
 using System.Text;
 
@@ -14,10 +13,13 @@ public class Recognizer : IDisposable
     private readonly InferenceSession _session;
     private readonly string[] _characterDict;
 
-    public Recognizer(string modelFile, string characterDictFile)
+    public Recognizer(string modelPath, string characterDictPath)
     {
-        _characterDict = File.ReadAllLines(characterDictFile);
-        _session = new InferenceSession(modelFile);
+        _characterDict = File.ReadAllLines(characterDictPath);
+        var options = new SessionOptions();
+        options.AppendExecutionProvider_DML();
+        options.AppendExecutionProvider_CPU();
+        _session = new InferenceSession(modelPath, options);
     }
 
     public void Dispose()
@@ -27,7 +29,6 @@ public class Recognizer : IDisposable
 
     public RecResult[] Recognize(Bitmap image, Rect[] rois)
     {
-        var s = Stopwatch.StartNew();
         var inputs = PreProcess(image, rois);
         using var outputs = _session.Run(inputs);
         var result = PostProcess(outputs, rois);
