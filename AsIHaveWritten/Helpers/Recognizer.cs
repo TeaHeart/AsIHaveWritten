@@ -27,7 +27,7 @@ public class Recognizer : IDisposable
         _session.Dispose();
     }
 
-    public RecResult[] Recognize(Bitmap image, Rect[] rois)
+    public RecResult[] Recognize(Mat image, Rect[] rois)
     {
         var inputs = PreProcess(image, rois);
         using var outputs = _session.Run(inputs);
@@ -35,10 +35,8 @@ public class Recognizer : IDisposable
         return result;
     }
 
-    private IReadOnlyCollection<NamedOnnxValue> PreProcess(Bitmap image, Rect[] rois)
+    private IReadOnlyCollection<NamedOnnxValue> PreProcess(Mat src, Rect[] rois)
     {
-        using var src = image.ToMat();
-
         // 归一
         using var dest = new Mat();
         src.ConvertTo(dest, MatType.CV_32FC4, 1.0 / 255.0);

@@ -24,7 +24,7 @@ public class Detector : IDisposable
         _session.Dispose();
     }
 
-    public DetResult[] Detect(Bitmap image)
+    public DetResult[] Detect(Mat image)
     {
         var inputs = PreProcess(image);
         using var outputs = _session.Run(inputs);
@@ -32,10 +32,8 @@ public class Detector : IDisposable
         return result;
     }
 
-    private IReadOnlyCollection<NamedOnnxValue> PreProcess(Bitmap image)
+    private IReadOnlyCollection<NamedOnnxValue> PreProcess(Mat src)
     {
-        using var src = image.ToMat();
-
         // 归一
         using var dest = new Mat();
         src.ConvertTo(dest, MatType.CV_32FC4, 1.0 / 255.0);

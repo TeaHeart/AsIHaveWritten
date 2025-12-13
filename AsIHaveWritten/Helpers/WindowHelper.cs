@@ -10,7 +10,7 @@ using Windows.Win32.UI.WindowsAndMessaging;
 public class WindowHelper
 {
     private readonly HWND _hWnd;
-    private Rectangle _windowRect;
+    public Rectangle _windowRect;
 
     public WindowHelper(string processName)
     {
