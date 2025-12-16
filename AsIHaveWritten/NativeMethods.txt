@@ -1,9 +1,10 @@
 SetProcessDPIAware
 GetDesktopWindow
-GetWindowRect
+GetForegroundWindow
 GetClientRect
 ClientToScreen
 ShowWindow
 SetForegroundWindow
-SetCursorPos
-mouse_event
+IsIconic
+PrintWindow
+GetCursorPos

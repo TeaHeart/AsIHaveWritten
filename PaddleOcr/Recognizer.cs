@@ -1,46 +1,14 @@
-﻿namespace AsIHaveWritten.Helpers;
+﻿namespace PaddleOcr;
 
 using Microsoft.ML.OnnxRuntime;
 using Microsoft.ML.OnnxRuntime.Tensors;
 using OpenCvSharp;
-using OpenCvSharp.Extensions;
-using System;
-using System.Drawing;
 using System.Text;
 
-public class Recognizer : IDisposable
+public static class Recognizer
 {
-    private readonly InferenceSession _session;
-    private readonly string[] _characterDict;
-
-    public Recognizer(string modelPath, string characterDictPath)
+    public static NamedOnnxValue[] Preprocess(Mat image, Rect[] rois)
     {
-        _characterDict = File.ReadAllLines(characterDictPath);
-        var options = new SessionOptions();
-        options.AppendExecutionProvider_DML();
-        options.AppendExecutionProvider_CPU();
-        _session = new InferenceSession(modelPath, options);
-    }
-
-    public void Dispose()
-    {
-        _session.Dispose();
-    }
-
-    public RecResult[] Recognize(Mat image, Rect[] rois)
-    {
-        var inputs = PreProcess(image, rois);
-        using var outputs = _session.Run(inputs);
-        var result = PostProcess(outputs, rois);
-        return result;
-    }
-
-    private IReadOnlyCollection<NamedOnnxValue> PreProcess(Mat src, Rect[] rois)
-    {
-        // 归一
-        using var dest = new Mat();
-        src.ConvertTo(dest, MatType.CV_32FC4, 1.0 / 255.0);
-
         // 一个输入 [-1, 3, 48, -1] 数量，通道，高度，宽度
         var tensor = new DenseTensor<float>([rois.Length, 3, 48, (rois.Max(x => x.Width * 48 / x.Height))]);
         // 预计算
@@ -52,24 +20,24 @@ public class Recognizer : IDisposable
         for (int b = 0; b < rois.Length; b++)
         {
             var roi = rois[b];
-            using var roiMat = new Mat(dest, roi);
+            using var roiMat = image[roi];
 
-            // resize
+            // 按高48调整宽度
             using var resizedMat = new Mat();
             Cv2.Resize(roiMat, resizedMat, new(roi.Width * 48 / roi.Height, 48));
 
             unsafe
             {
-                resizedMat.ForEachAsVec4f((value, position) =>
+                resizedMat.ForEachAsVec4b((value, position) =>
                 {
                     var h = position[0];
                     var w = position[1];
                     var index = b * batchStride + 0 * channelStride + h * heightStride + w;
 
                     var span = tensor.Buffer.Span;
-                    span[index + 0 * channelStride] = value->Item0; // B
-                    span[index + 1 * channelStride] = value->Item1; // G
-                    span[index + 2 * channelStride] = value->Item2; // R
+                    span[index + 0 * channelStride] = value->Item0 / 255f; // B
+                    span[index + 1 * channelStride] = value->Item1 / 255f; // G
+                    span[index + 2 * channelStride] = value->Item2 / 255f; // R
                 });
             }
         }
@@ -77,7 +45,7 @@ public class Recognizer : IDisposable
         return [NamedOnnxValue.CreateFromTensor("x", tensor)];
     }
 
-    private RecResult[] PostProcess(IReadOnlyCollection<NamedOnnxValue> outputs, Rect[] rois)
+    public static RecResult[] Postprocess(IReadOnlyCollection<NamedOnnxValue> outputs, string[] index2Word)
     {
         // 一个输出 [-1, -1, -1] 第几个区域，第几个字符，字符概率
         var tensor = (DenseTensor<float>)outputs.First(x => x.Name == "fetch_name_0").Value;
@@ -85,16 +53,13 @@ public class Recognizer : IDisposable
         var dim = tensor.Dimensions;
         var typeStride = dim[2];
         var batchStride = dim[1] * typeStride;
-
         var span = tensor.Buffer.Span;
-
         var result = new RecResult[dim[0]];
 
         // 第b个图片
         for (int b = 0; b < dim[0]; b++)
         {
             var batchOffset = b * batchStride;
-
             var sb = new StringBuilder();
             var count = 0;
             var score = 0f;
@@ -103,7 +68,6 @@ public class Recognizer : IDisposable
             for (int t = 0; t < dim[1]; t++)
             {
                 var typeOffset = batchOffset + t * typeStride;
-
                 var maxIndex = -1;
                 var maxScore = float.MinValue;
 
@@ -120,32 +84,22 @@ public class Recognizer : IDisposable
 
                 // 索引有1的偏移
                 maxIndex--;
-                if (0 <= maxIndex && maxIndex < _characterDict.Length)
+                if (0 <= maxIndex && maxIndex < index2Word.Length)
                 {
                     count++;
                     score += maxScore;
-                    sb.Append(_characterDict[maxIndex]);
+                    sb.Append(index2Word[maxIndex]);
                 }
-                else if (maxIndex == _characterDict.Length)
+                else if (maxIndex == index2Word.Length)
                 {
                     sb.Append(' ');
                 }
             }
 
-            if (count > 0)
-            {
-                score /= count;
-                result[b] = new RecResult { Box = rois[b], Text = sb.ToString(), Score = score };
-            }
+            score = count > 0 ? score / count : 0;
+            result[b] = new(sb.ToString(), score);
         }
 
         return result;
-    }
-
-    public readonly struct RecResult
-    {
-        public Rect Box { get; init; }
-        public float Score { get; init; }
-        public string Text { get; init; }
     }
 }
