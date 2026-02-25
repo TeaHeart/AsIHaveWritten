@@ -43,6 +43,17 @@ internal class GameWindow : IDisposable
         return image.GetPixel(point.X, point.Y);
     }
 
+    internal IReadOnlyList<string> DetectAndRecognize(IReadOnlyList<Rectangle> regions)
+    {
+        using var image = Window.Screenshot;
+        if (image == null)
+        {
+            return Enumerable.Repeat(string.Empty, regions.Count).ToArray();
+        }
+        var mapper = Mapper.NormalizedTarget;
+        return regions.Select(x => string.Join("", Engine.DetectAndRecognize(image, [mapper.Map(x)]).Select(x => x.Rec.Text))).ToArray();
+    }
+
     internal IReadOnlyList<string> Recognize(IReadOnlyList<Rectangle> regions)
     {
         using var image = Window.Screenshot;

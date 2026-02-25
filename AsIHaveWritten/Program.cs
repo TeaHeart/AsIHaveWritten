@@ -1,8 +1,9 @@
 ﻿namespace AsIHaveWritten;
 
-using AsIHaveWritten.Extensions;
 using AsIHaveWritten.GameScripts;
+using AsIHaveWritten.GameScripts.CurrencyWars;
 using AsIHaveWritten.Helpers;
+using SharpHook.Providers;
 using System.Diagnostics;
 using System.Security.Principal;
 
@@ -10,15 +11,14 @@ internal class Program
 {
     static void RunApplication()
     {
-        using var win = new GameWindow("endfield");
-        using var mcm = new MouseClickerManager(win);
-        using var timer = new Timer(_ =>
-        {
-            mcm.Enabled = win.Window.IsForeground;
-        });
-        timer.Enable(100);
-        Console.WriteLine("F8 记录/清除点， 左 Control 连点");
-        Console.ReadLine();
+        using var win = new GameWindow("StarRail");
+        // 手动刷了一下午没有3专家 😅
+        CurrencyWars.RefreshOpening(win, buff => true, inv => inv.Contains("专家")
+                                                 || inv.Contains("银金彩")
+                                                 || (inv.Contains("棱彩") && !inv.Contains("尾彩")),
+                                                 Mode.Overclock,
+                                                 (int)Rank.A7);
+        UioHookProvider.Instance.Stop();
     }
 
     static void Main(string[] args)
