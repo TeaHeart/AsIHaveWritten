@@ -104,46 +104,58 @@ internal static class Detector
     }
 
     private static void FindBounds(ReadOnlySpan<float> span,
-                                   int row,
-                                   int column,
+                                   int startRow,
+                                   int startColumn,
                                    int height,
                                    int width,
                                    int heightStride,
                                    float thresh,
                                    Span<bool> visited,
-                                   ref float sum,
-                                   ref int count,
-                                   ref Rectangle bounds)
+                                   out float sum,
+                                   out int count,
+                                   out Rectangle bounds)
     {
-        if (!(0 <= row && row < height && 0 <= column && column < width))
+        sum = 0f;
+        count = 0;
+        bounds = new Rectangle(startColumn, startRow, 0, 0);
+
+        var stack = new Stack<(int row, int column)>();
+        stack.Push((startRow, startColumn));
+
+        while (stack.Count > 0)
         {
-            return;
+            var (row, column) = stack.Pop();
+
+            if (!(0 <= row && row < height && 0 <= column && column < width))
+            {
+                continue;
+            }
+
+            var index = row * heightStride + column;
+            if (visited[index])
+            {
+                continue;
+            }
+
+            visited[index] = true;
+            var value = span[index];
+            if (!(value >= thresh))
+            {
+                continue;
+            }
+
+            sum += value;
+            count++;
+
+            // 更新最小外接矩形
+            bounds = Rectangle.Union(bounds, new(column, row, 0, 0));
+
+            // 上 右 下 左
+            stack.Push((row - 1, column));
+            stack.Push((row, column + 1));
+            stack.Push((row + 1, column));
+            stack.Push((row, column - 1));
         }
-
-        var index = row * heightStride + column;
-        if (visited[index])
-        {
-            return;
-        }
-
-        visited[index] = true;
-        var value = span[index];
-        if (!(value >= thresh))
-        {
-            return;
-        }
-
-        sum += value;
-        count++;
-
-        // 更新最小外接矩形
-        bounds = Rectangle.Union(bounds, new(column, row, 0, 0));
-
-        // 上 右 下 左
-        FindBounds(span, row - 1, column, height, width, heightStride, thresh, visited, ref sum, ref count, ref bounds);
-        FindBounds(span, row, column + 1, height, width, heightStride, thresh, visited, ref sum, ref count, ref bounds);
-        FindBounds(span, row + 1, column, height, width, heightStride, thresh, visited, ref sum, ref count, ref bounds);
-        FindBounds(span, row, column - 1, height, width, heightStride, thresh, visited, ref sum, ref count, ref bounds);
     }
 
     private static void FindAllBounds(ReadOnlySpan<float> output,
@@ -177,10 +189,7 @@ internal static class Detector
                     if (!visited[index] && output[index] >= thresh)
                     {
                         var sub = output.Slice(batchStart, batchStride);
-                        var sum = 0f;
-                        var count = 0;
-                        var bounds = new Rectangle(column, row, 0, 0);
-                        FindBounds(sub, row, column, height, width, heightStride, thresh, visited, ref sum, ref count, ref bounds);
+                        FindBounds(sub, row, column, height, width, heightStride, thresh, visited, out var sum, out var count, out var bounds);
 
                         var score = count != 0 ? sum / count : 0;
                         if (score >= boxThresh && bounds.Height * bounds.Width > 0)

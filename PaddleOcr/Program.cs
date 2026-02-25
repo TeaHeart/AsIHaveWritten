@@ -8,7 +8,7 @@ internal class Program
 {
     static void Main(string[] args)
     {
-        using var bitmap = new Bitmap("Resources/ppocr/test1.png");
+        using var bitmap = new Bitmap("Resources/ppocr/test4.png");
 
         using var engine = new PaddleOcrEngine();
 

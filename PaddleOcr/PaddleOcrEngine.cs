@@ -41,6 +41,12 @@ public sealed class PaddleOcrEngine : IDisposable
         using var _1 = inputs;
         using var _2 = outputs;
         _det.Run(null, _det.InputNames, inputs, _det.OutputNames, outputs);
+        // 用于灰度图测试
+        // Detector.Postprocess(outputs, regions, [imageShape[0], imageShape[1], 1], out var gray);
+        // using var grayImage = new Bitmap((int)imageShape[1], (int)imageShape[0], System.Drawing.Imaging.PixelFormat.Format8bppIndexed);
+        // grayImage.SetGrayPalette();
+        // grayImage.CopyFrom(gray);
+        // grayImage.Show("gray");
         Detector.Postprocess(outputs, regions, out var boxes);
         return boxes;
     }
