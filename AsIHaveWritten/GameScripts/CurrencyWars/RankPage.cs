@@ -20,15 +20,23 @@ internal class RankPage(GameWindow window) : PageBase("货币战争/职级选择
 
     private void ChangeDifficulty(int targetDifficulty)
     {
+        if (targetDifficulty == (int)Rank.None)
+        {
+            return;
+        }
         if (targetDifficulty == (int)Rank.Max)
         {
-            _window.MouseMove(_toTopRank.Location);
-            _window.MouseClick();
-            Thread.Sleep(5000);
+            if (_window.Recognize([_toTopRank])[0] == "返回最高职级")
+            {
+                _window.MouseMove(_toTopRank.Location);
+                _window.MouseClick();
+                Thread.Sleep(5000);
+            }
             return;
         }
         while (true)
         {
+            Thread.Sleep(200);
             var diff = _window.Recognize([_difficulty])[0];
             var value = int.Parse(diff);
             Console.WriteLine($"{Name}, 当前难度: {diff}, 目标难度: {targetDifficulty}");
@@ -47,14 +55,12 @@ internal class RankPage(GameWindow window) : PageBase("货币战争/职级选择
             {
                 break;
             }
-            Thread.Sleep(200);
         }
     }
 
     public void NextStep(int targetDifficulty)
     {
         ChangeDifficulty(targetDifficulty);
-        Thread.Sleep(1000);
         _window.MouseMove(_beginWar.Location);
         _window.MouseClick();
     }
@@ -62,6 +68,8 @@ internal class RankPage(GameWindow window) : PageBase("货币战争/职级选择
 
 internal enum Rank
 {
+    // 保持原本
+    None = 0,
     A0 = 1,
     A1 = 6,
     A2 = 11,
