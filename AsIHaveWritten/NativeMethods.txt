@@ -1,4 +1,0 @@
-SetProcessDPIAware
-ShowWindow
-SetForegroundWindow
-GetCursorPos

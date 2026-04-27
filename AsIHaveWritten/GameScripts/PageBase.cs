@@ -1,4 +1,4 @@
-namespace AsIHaveWritten.GameScripts;
+﻿namespace AsIHaveWritten.GameScripts;
 
 internal abstract class PageBase(string name, GameWindow window) : IDisposable
 {

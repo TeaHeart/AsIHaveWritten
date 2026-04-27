@@ -1,4 +1,4 @@
-﻿namespace WindowCapture.Helpers;
+﻿namespace Common.Helpers;
 
 using System.ComponentModel;
 using System.Diagnostics;
@@ -10,13 +10,14 @@ using Windows.Win32.Graphics.Gdi;
 using Windows.Win32.Storage.Xps;
 using Windows.Win32.UI.WindowsAndMessaging;
 
-internal static class WindowHelper
+public static class WindowHelper
 {
-    internal static bool SetProcessDPIAware() => PInvoke.SetProcessDPIAware();
-    internal static bool IsForegroundWindow(nint hWnd) => hWnd != nint.Zero && hWnd == PInvoke.GetForegroundWindow();
-    internal static nint GetDesktopWindow() => PInvoke.GetDesktopWindow();
+    public static bool SetProcessDPIAware() => PInvoke.SetProcessDPIAware();
+    public static bool IsForegroundWindow(nint hWnd) => hWnd != nint.Zero && hWnd == PInvoke.GetForegroundWindow();
+    public static nint GetDesktopWindow() => PInvoke.GetDesktopWindow();
+    public static bool GetCursorPos(out Point point) => PInvoke.GetCursorPos(out point);
 
-    internal static nint GetWindowHandle(string processName)
+    public static nint GetWindowHandle(string processName)
     {
         var processes = Process.GetProcessesByName(processName);
 
@@ -41,7 +42,7 @@ internal static class WindowHelper
         }
     }
 
-    internal static bool GetClientBounds(nint handle, out Rectangle clientBounds)
+    public static bool GetClientBounds(nint handle, out Rectangle clientBounds)
     {
         clientBounds = default;
         if (handle == nint.Zero)
@@ -67,7 +68,7 @@ internal static class WindowHelper
         return true;
     }
 
-    internal static bool SetWindowVisiable(nint handle, bool setForeground = false)
+    public static bool SetWindowVisiable(nint handle, bool setForeground = false)
     {
         if (handle == nint.Zero)
         {
@@ -91,7 +92,7 @@ internal static class WindowHelper
         return true;
     }
 
-    internal static bool PrintWindow(nint hWnd, Size clientSize, [MaybeNullWhen(false)] out Bitmap bitmap)
+    public static bool PrintWindow(nint hWnd, Size clientSize, [MaybeNullWhen(false)] out Bitmap bitmap)
     {
         if (hWnd == nint.Zero || clientSize.Width * clientSize.Height <= 0)
         {
@@ -119,7 +120,7 @@ internal static class WindowHelper
         }
     }
 
-    internal static bool CopyFromScreen(Rectangle region, [MaybeNullWhen(false)] out Bitmap bitmap)
+    public static bool CopyFromScreen(Rectangle region, [MaybeNullWhen(false)] out Bitmap bitmap)
     {
         if (region.Width * region.Height <= 0)
         {
@@ -144,7 +145,7 @@ internal static class WindowHelper
         }
     }
 
-    // internal static bool CopyFromScreenByPInvoke(Rectangle region, [MaybeNullWhen(false)] out Bitmap bitmap)
+    // public static bool CopyFromScreenByPInvoke(Rectangle region, [MaybeNullWhen(false)] out Bitmap bitmap)
     // {
     //     if (region.Width * region.Height <= 0)
     //     {

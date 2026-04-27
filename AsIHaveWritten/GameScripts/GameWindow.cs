@@ -1,12 +1,12 @@
 ﻿namespace AsIHaveWritten.GameScripts;
 
-using AsIHaveWritten.Helpers;
+using Common;
+using Common.Helpers;
 using PaddleOcr;
 using SharpHook;
 using SharpHook.Data;
 using System;
 using System.Drawing;
-using WindowCapture;
 
 internal class GameWindow : IDisposable
 {

@@ -1,7 +1,7 @@
-namespace AsIHaveWritten.GameScripts.CurrencyWars;
+﻿namespace AsIHaveWritten.GameScripts.CurrencyWars;
 
+using Common.Helpers;
 using System.Drawing;
-using AsIHaveWritten.Helpers;
 
 internal class LeavePage(GameWindow window) : PageBase("货币战争/离开", window)
 {

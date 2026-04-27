@@ -1,7 +1,7 @@
-﻿namespace WindowCapture;
+﻿namespace Common;
 
+using Common.Helpers;
 using System.Drawing;
-using WindowCapture.Helpers;
 
 public sealed class WindowMonitor(string processName, TimeSpan? cacheTime = null) : IDisposable
 {

@@ -2,7 +2,7 @@
 
 using AsIHaveWritten.GameScripts;
 using AsIHaveWritten.GameScripts.CurrencyWars;
-using AsIHaveWritten.Helpers;
+using Common.Helpers;
 using SharpHook.Providers;
 using System.Diagnostics;
 using System.Security.Principal;

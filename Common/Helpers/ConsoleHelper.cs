@@ -1,23 +1,23 @@
-﻿namespace AsIHaveWritten.Helpers;
+﻿namespace Common.Helpers;
 
 using System.Text;
 
-internal static class ConsoleHelper
+public static class ConsoleHelper
 {
-    internal static int Left => Console.CursorLeft;
-    internal static int Top => Console.CursorTop;
-    internal static int Width => Console.WindowWidth;
-    internal static int Height => Console.WindowHeight;
-    internal static bool CursorVisible { get => Console.CursorVisible; set => Console.CursorVisible = value; }
+    public static int Left => Console.CursorLeft;
+    public static int Top => Console.CursorTop;
+    public static int Width => Console.WindowWidth;
+    public static int Height => Console.WindowHeight;
+    public static bool CursorVisible { get => Console.CursorVisible; set => Console.CursorVisible = value; }
 
     private static readonly object _syncRoot = new();
 
-    internal static void SetEncoding(Encoding? encoding = null)
+    public static void SetEncoding(Encoding? encoding = null)
     {
         Console.InputEncoding = Console.OutputEncoding = encoding ?? Encoding.UTF8;
     }
 
-    internal static void Clear(int? top = null)
+    public static void Clear(int? top = null)
     {
         lock (_syncRoot)
         {
@@ -35,7 +35,7 @@ internal static class ConsoleHelper
         }
     }
 
-    internal static void Write(object? value, int? top = null)
+    public static void Write(object? value, int? top = null)
     {
         lock (_syncRoot)
         {
@@ -44,7 +44,7 @@ internal static class ConsoleHelper
         }
     }
 
-    internal static void WriteLine(object? value = null, int? top = null)
+    public static void WriteLine(object? value = null, int? top = null)
     {
         lock (_syncRoot)
         {
@@ -53,7 +53,7 @@ internal static class ConsoleHelper
         }
     }
 
-    internal static void WriteProgress(int current, int total, int? top = null)
+    public static void WriteProgress(int current, int total, int? top = null)
     {
         lock (_syncRoot)
         {
@@ -85,7 +85,7 @@ internal static class ConsoleHelper
         }
     }
 
-    internal static string Read(ReadOnlySpan<char> whitelist)
+    public static string Read(ReadOnlySpan<char> whitelist)
     {
         lock (_syncRoot)
         {
@@ -121,7 +121,7 @@ internal static class ConsoleHelper
         }
     }
 
-    internal static T ReadOption<T>(IReadOnlyList<T> options)
+    public static T ReadOption<T>(IReadOnlyList<T> options)
     {
         lock (_syncRoot)
         {
@@ -133,7 +133,7 @@ internal static class ConsoleHelper
             CursorVisible = false;
             while (true)
             {
-                for (int i = 0; i < maxShow; i++)
+                for (var i = 0; i < maxShow; i++)
                 {
                     Clear(top + i);
                     Write($"{(i == 0 ? "> " : "  ")}{options[(index + i) % count]}", top + i);

@@ -1,10 +1,10 @@
-﻿namespace AsIHaveWritten.Helpers;
+﻿namespace Common.Helpers;
 
 using Microsoft.VisualBasic;
 
-internal static class StringHelper
+public static class StringHelper
 {
-    internal static string ToSimplifiedChinese(string text)
+    public static string ToSimplifiedChinese(string text)
     {
         if (Strings.StrConv(text, VbStrConv.SimplifiedChinese) is string chText)
         {
@@ -13,7 +13,7 @@ internal static class StringHelper
         return text;
     }
 
-    internal static bool IsSimplifiedChinese(char c)
+    public static bool IsSimplifiedChinese(char c)
     {
         // 基本汉字
         if (c >= '\u4E00' && c <= '\u9FFF')
@@ -30,7 +30,7 @@ internal static class StringHelper
         return false;
     }
 
-    internal static string FindBestMatch(IEnumerable<string> dict, string text, float threshold = 0.5f)
+    public static string FindBestMatch(IEnumerable<string> dict, string text, float threshold = 0.5f)
     {
         var bestMatch = text;
         var minDis = text.Length;
@@ -50,14 +50,14 @@ internal static class StringHelper
         return score >= threshold ? bestMatch : text;
     }
 
-    internal static float GetSimilarity(string s, string t)
+    public static float GetSimilarity(string s, string t)
     {
         var maxLength = Math.Max(s.Length, t.Length);
         var dis = LevenshteinDistance(s, t);
         return 1.0f - (float)dis / maxLength;
     }
 
-    internal static int LevenshteinDistance(string s, string t)
+    public static int LevenshteinDistance(string s, string t)
     {
         var n = s.Length;
         var m = t.Length;
@@ -74,19 +74,19 @@ internal static class StringHelper
 
         var d = new int[n + 1, m + 1];
 
-        for (int i = 0; i <= n; i++)
+        for (var i = 0; i <= n; i++)
         {
             d[i, 0] = i;
         }
 
-        for (int j = 0; j <= m; j++)
+        for (var j = 0; j <= m; j++)
         {
             d[0, j] = j;
         }
 
-        for (int i = 1; i <= n; i++)
+        for (var i = 1; i <= n; i++)
         {
-            for (int j = 1; j <= m; j++)
+            for (var j = 1; j <= m; j++)
             {
                 var cost = t[j - 1] == s[i - 1] ? 0 : 1;
                 d[i, j] = Math.Min(Math.Min(d[i - 1, j] + 1, d[i, j - 1] + 1), d[i - 1, j - 1] + cost);

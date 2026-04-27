@@ -1,8 +1,10 @@
-﻿namespace WindowCapture;
+﻿namespace Common;
 
+using Common.Extensions;
+using Common.Helpers;
 using System.Diagnostics;
-using WindowCapture.Extensions;
-using WindowCapture.Helpers;
+using Windows.Win32;
+using Windows.Win32.Foundation;
 
 internal class Program
 {
@@ -36,6 +38,31 @@ internal class Program
             WindowHelper.PrintWindow(handle, clientBounds.Size, out var bitmap);
             bitmap?.Dispose();
         });
+    }
+
+    static void GlobalHookDemo()
+    {
+        if (!PInvoke.RegisterHotKey(HWND.Null, 1, 0, 0x70))
+        {
+            Console.WriteLine("Failed to register hotkey.");
+            return;
+        }
+
+        Console.WriteLine("Hotkey registered. Press Ctrl+Alt+F1 to trigger.");
+
+        while (PInvoke.GetMessage(out var msg, HWND.Null, 0, 0))
+        {
+            PInvoke.TranslateMessage(msg);
+            PInvoke.DispatchMessage(msg);
+
+            if (msg.message == 0x0312)
+            {
+                Console.WriteLine("Hotkey pressed!");
+                Console.WriteLine(msg.time);
+            }
+        }
+
+        PInvoke.UnregisterHotKey(HWND.Null, 1);
     }
 
     static void Benchmark(string title, Action action)

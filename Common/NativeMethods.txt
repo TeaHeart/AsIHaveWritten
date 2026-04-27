@@ -1,4 +1,5 @@
 SetProcessDPIAware
+GetCursorPos
 GetDesktopWindow
 GetForegroundWindow
 GetClientRect
@@ -6,3 +7,8 @@ ClientToScreen
 ShowWindow
 SetForegroundWindow
 PrintWindow
+RegisterHotKey
+UnregisterHotKey
+GetMessage
+TranslateMessage
+DispatchMessage

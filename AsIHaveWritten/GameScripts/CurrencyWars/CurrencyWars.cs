@@ -1,4 +1,4 @@
-namespace AsIHaveWritten.GameScripts.CurrencyWars;
+﻿namespace AsIHaveWritten.GameScripts.CurrencyWars;
 
 internal class CurrencyWars
 {

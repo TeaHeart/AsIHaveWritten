@@ -1,6 +1,6 @@
 ﻿namespace PaddleOcr;
 
-using PaddleOcr.Extensions;
+using Common.Extensions;
 using System.Diagnostics;
 using System.Drawing;
 

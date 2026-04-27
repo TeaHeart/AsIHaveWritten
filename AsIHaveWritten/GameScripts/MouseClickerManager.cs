@@ -1,6 +1,6 @@
 ﻿namespace AsIHaveWritten.GameScripts;
 
-using AsIHaveWritten.Helpers;
+using Common.Helpers;
 using SharpHook;
 using SharpHook.Data;
 using System.Drawing;

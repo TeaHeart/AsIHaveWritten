@@ -1,7 +1,7 @@
 ﻿namespace PaddleOcr;
 
+using Common.Extensions;
 using Microsoft.ML.OnnxRuntime;
-using PaddleOcr.Extensions;
 using System.Drawing;
 
 public sealed class PaddleOcrEngine : IDisposable

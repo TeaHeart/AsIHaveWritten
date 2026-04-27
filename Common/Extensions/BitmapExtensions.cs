@@ -1,30 +1,30 @@
-﻿namespace WindowCapture.Extensions;
+﻿namespace Common.Extensions;
 
 using System.Diagnostics;
 using System.Drawing;
 using System.Drawing.Imaging;
 using System.Runtime.InteropServices;
 
-internal static class BitmapExtensions
+public static class BitmapExtensions
 {
-    internal static Rectangle GetBounds(this Bitmap bitmap)
+    public static Rectangle GetBounds(this Bitmap bitmap)
     {
         return new(0, 0, bitmap.Width, bitmap.Height);
     }
 
-    internal static long[] GetShape(this Bitmap bitmap)
+    public static long[] GetShape(this Bitmap bitmap)
     {
         return [bitmap.Height, bitmap.Width, Math.Max(1, Image.GetPixelFormatSize(bitmap.PixelFormat) / 8)];
     }
 
-    internal static long[] GetStrides(this Bitmap bitmap)
+    public static long[] GetStrides(this Bitmap bitmap)
     {
         var shape = bitmap.GetShape();
         var value = shape[1] * shape[2];
         return [(value + 4 - value % 4), shape[2], 1];
     }
 
-    internal static byte[] ToBytes(this Bitmap bitmap, out long[] imageShape, PixelFormat format = PixelFormat.Format24bppRgb)
+    public static byte[] ToBytes(this Bitmap bitmap, out long[] imageShape, PixelFormat format = PixelFormat.Format24bppRgb)
     {
         var shape = bitmap.GetShape();
         var (height, width, channels) = ((int)shape[0], (int)shape[1], format switch
@@ -55,7 +55,7 @@ internal static class BitmapExtensions
         }
     }
 
-    internal static void CopyFrom(this Bitmap bitmap, byte[] bytes)
+    public static void CopyFrom(this Bitmap bitmap, byte[] bytes)
     {
         var shape = bitmap.GetShape();
         var (height, width, channels) = ((int)shape[0], (int)shape[1], (int)shape[2]);
@@ -76,13 +76,13 @@ internal static class BitmapExtensions
         }
     }
 
-    internal static void Show(this Bitmap bitmap, string title, bool wait = true, int timeout = Timeout.Infinite)
+    public static void Show(this Bitmap bitmap, string title, bool wait = true, int timeout = Timeout.Infinite)
     {
         var filename = Path.GetTempFileName().Replace(".tmp", $"-{title}.png");
         bitmap.Save(filename);
         using var process = Process.Start(new ProcessStartInfo
         {
-            FileName = "rundll32.exe", // 可选 mspaint.exe 
+            FileName = "rundll32.exe", // 可选 mspaint.exe
             Arguments = string.Join(" ", ["shimgvw.dll,ImageView_Fullscreen", filename])
         }) ?? throw new NullReferenceException();
 
@@ -97,7 +97,7 @@ internal static class BitmapExtensions
         }
     }
 
-    internal static void SetGrayPalette(this Bitmap bitmap)
+    public static void SetGrayPalette(this Bitmap bitmap)
     {
         var palette = bitmap.Palette;
         for (int i = 0; i < 256; i++)
@@ -107,7 +107,7 @@ internal static class BitmapExtensions
         bitmap.Palette = palette;
     }
 
-    internal static void DrawBoxes(this Bitmap bitmap, IEnumerable<(Rectangle Box, float Score)> boxes)
+    public static void DrawBoxes(this Bitmap bitmap, IEnumerable<(Rectangle Box, float Score)> boxes)
     {
         using var graph = Graphics.FromImage(bitmap);
         foreach (var (Box, Score) in boxes)
