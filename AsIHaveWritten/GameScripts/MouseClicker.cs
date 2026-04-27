@@ -1,15 +1,14 @@
 ﻿namespace AsIHaveWritten.GameScripts;
 
 using AsIHaveWritten.Extensions;
-using SharpHook;
 using SharpHook.Data;
 using System.Drawing;
 
-public class MouseClicker : IDisposable
+internal class MouseClicker : IDisposable
 {
-    public Point? Location { get; set; }
-    public MouseButton Button { get; set; }
-    public bool Enabled
+    internal Point? Location { get; set; }
+    internal MouseButton Button { get; set; }
+    internal bool Enabled
     {
         get => _enabled;
         set
@@ -32,13 +31,13 @@ public class MouseClicker : IDisposable
         }
     }
 
-    private readonly IEventSimulator _simulator;
+    private readonly GameWindow _window;
     private readonly Timer _timer;
     private bool _enabled;
 
-    public MouseClicker(IEventSimulator simulator)
+    internal MouseClicker(GameWindow window)
     {
-        _simulator = simulator;
+        _window = window;
         _timer = new(MouseClick);
     }
 
@@ -49,6 +48,11 @@ public class MouseClicker : IDisposable
 
     private void MouseClick(object? state)
     {
-        _simulator.SimulateMouseClick(Button, Location);
+        if (Location is Point p)
+        {
+            _window.MouseMove(p);
+        }
+
+        _window.MouseClick(Button);
     }
 }

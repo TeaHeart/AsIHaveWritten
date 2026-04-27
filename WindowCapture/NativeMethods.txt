@@ -1,0 +1,8 @@
+SetProcessDPIAware
+GetDesktopWindow
+GetForegroundWindow
+GetClientRect
+ClientToScreen
+ShowWindow
+SetForegroundWindow
+PrintWindow

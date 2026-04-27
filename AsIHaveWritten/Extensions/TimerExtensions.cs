@@ -1,13 +1,13 @@
 ﻿namespace AsIHaveWritten.Extensions;
 
-public static class TimerExtensions
+internal static class TimerExtensions
 {
-    public static void Enable(this Timer timer, int period, int dueTime = 0)
+    internal static void Enable(this Timer timer, int period, int dueTime = 0)
     {
         timer.Change(dueTime, period);
     }
 
-    public static void Disable(this Timer timer)
+    internal static void Disable(this Timer timer)
     {
         timer.Change(Timeout.Infinite, Timeout.Infinite);
     }

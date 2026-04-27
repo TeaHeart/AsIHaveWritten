@@ -1,0 +1,7 @@
+RegisterHotKey
+UnregisterHotKey
+GetMessageExtraInfo
+GetActiveWindow
+GetMessage
+TranslateMessage
+DispatchMessage

@@ -2,9 +2,9 @@
 
 using Microsoft.VisualBasic;
 
-public static class StringHelper
+internal static class StringHelper
 {
-    public static string ToSimplifiedChinese(string text)
+    internal static string ToSimplifiedChinese(string text)
     {
         if (Strings.StrConv(text, VbStrConv.SimplifiedChinese) is string chText)
         {
@@ -13,7 +13,7 @@ public static class StringHelper
         return text;
     }
 
-    public static bool IsSimplifiedChinese(char c)
+    internal static bool IsSimplifiedChinese(char c)
     {
         // 基本汉字
         if (c >= '\u4E00' && c <= '\u9FFF')
@@ -30,7 +30,7 @@ public static class StringHelper
         return false;
     }
 
-    public static string FindBestMatch(IEnumerable<string> dict, string text, float threshold = 0.5f)
+    internal static string FindBestMatch(IEnumerable<string> dict, string text, float threshold = 0.5f)
     {
         var bestMatch = text;
         var minDis = text.Length;
@@ -50,7 +50,14 @@ public static class StringHelper
         return score >= threshold ? bestMatch : text;
     }
 
-    public static int LevenshteinDistance(string s, string t)
+    internal static float GetSimilarity(string s, string t)
+    {
+        var maxLength = Math.Max(s.Length, t.Length);
+        var dis = LevenshteinDistance(s, t);
+        return 1.0f - (float)dis / maxLength;
+    }
+
+    internal static int LevenshteinDistance(string s, string t)
     {
         var n = s.Length;
         var m = t.Length;

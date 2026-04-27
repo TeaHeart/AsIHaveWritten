@@ -2,41 +2,23 @@
 
 using AsIHaveWritten.Extensions;
 using AsIHaveWritten.GameScripts;
-using AsIHaveWritten.GameScripts.Zzz;
 using AsIHaveWritten.Helpers;
-using PaddleOcr;
-using SharpHook;
 using System.Diagnostics;
 using System.Security.Principal;
-using System.Text;
 
 internal class Program
 {
     static void RunApplication()
     {
-        using var hook = new SimpleGlobalHook();
-        var sim = new EventSimulator();
-        using var ocr = new PaddleOcrEngine();
-        using var win = new GameWindow("ZenlessZoneZero");
-        using var wm = new WindowMonitor(win);
-        using var mcm = new MouseClickerManager(hook, sim);
-        using var afm = new ZzzAutoFishingManager(hook, sim, ocr, win);
-
-        wm.WindowStatusChanged += (_, e) =>
+        using var win = new GameWindow("endfield");
+        using var mcm = new MouseClickerManager(win);
+        using var timer = new Timer(_ =>
         {
-            Console.WriteLine(e);
-            mcm.Enabled = afm.Enabled = e.IsForeground;
-        };
-
-        wm.Enabled = true;
-
-        hook.RunAsync();
-
-        while (true)
-        {
-            using var bitmap = win.Bitmap;
-            bitmap?.Show("win", 0.5, 1);
-        }
+            mcm.Enabled = win.Window.IsForeground;
+        });
+        timer.Enable(100);
+        Console.WriteLine("F8 记录/清除点， 左 Control 连点");
+        Console.ReadLine();
     }
 
     static void Main(string[] args)
@@ -62,10 +44,9 @@ internal class Program
 
     static void ConfigApplication()
     {
-        Console.InputEncoding = Encoding.UTF8;
-        Console.OutputEncoding = Encoding.UTF8;
+        ConsoleHelper.SetEncoding();
 
-        if (!Win32Helper.SetProcessDPIAware())
+        if (!WindowHelper.SetProcessDPIAware())
         {
             Console.WriteLine("设置DPI感应失败");
         }

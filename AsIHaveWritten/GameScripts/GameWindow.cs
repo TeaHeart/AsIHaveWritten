@@ -1,31 +1,76 @@
 ﻿namespace AsIHaveWritten.GameScripts;
 
 using AsIHaveWritten.Helpers;
+using PaddleOcr;
+using SharpHook;
+using SharpHook.Data;
+using System;
 using System.Drawing;
+using WindowCapture;
 
-public class GameWindow : IDisposable
+internal class GameWindow : IDisposable
 {
-    public IntPtr Handle => Win32Helper.GetWindowHandle(_processName);
-    public Rectangle? Rectangle => Win32Helper.GetClientRectangle(Handle);
-    public CoordinateMapper? Mapper => Rectangle != null ? new() { Target = Rectangle.Value } : null;
-    public bool IsForeground => Win32Helper.IsForegroundWindow(Handle);
-    public Bitmap? Bitmap => _cachedBitmap.Value;
+    internal CoordinateMapper Mapper => new() { Target = Window.ClientBounds };
+    internal readonly WindowMonitor Window;
+    internal readonly PaddleOcrEngine Engine;
+    internal readonly IEventSimulator Simulator;
+    internal readonly IGlobalHook Hook;
 
-    private readonly string _processName;
-    private readonly SimpleCache<Bitmap?> _cachedBitmap;
-
-    public GameWindow(string processName)
+    internal GameWindow(string processName)
     {
-        _processName = processName;
-        _cachedBitmap = new(
-            () => Win32Helper.PrintWindow(Handle),
-            TimeSpan.FromMilliseconds(16), // 1000/16=62.5fps
-            x => x?.Clone() as Bitmap,
-            x => x?.Dispose());
+        Window = new(processName);
+        Engine = new();
+        Simulator = new EventSimulator();
+        Hook = new SimpleGlobalHook();
+        Hook.RunAsync();
     }
 
     public void Dispose()
     {
-        _cachedBitmap.Dispose();
+        Window.Dispose();
+        Engine.Dispose();
+        //_hook.Dispose(); // 会停止全局的hook 😅
+    }
+
+    internal Color? GetPixel(Point point)
+    {
+        using var image = Window.Screenshot;
+        if (image == null)
+        {
+            return null;
+        }
+        point = Mapper.NormalizedTarget.Map(point);
+        return image.GetPixel(point.X, point.Y);
+    }
+
+    internal IReadOnlyList<string> Recognize(IReadOnlyList<Rectangle> regions)
+    {
+        using var image = Window.Screenshot;
+        if (image == null)
+        {
+            return Enumerable.Repeat(string.Empty, regions.Count).ToArray();
+        }
+        var mapper = Mapper.NormalizedTarget;
+        return Engine.Recognize(image, regions.Select(mapper.Map).ToArray()).Select(x => x.Text).ToArray();
+    }
+
+    internal void MouseMove(Point point)
+    {
+        point = Mapper.Map(point);
+        Simulator.SimulateMouseMovement((short)point.X, (short)point.Y);
+    }
+
+    internal void MouseClick(MouseButton button = MouseButton.Button1, int ms = 0)
+    {
+        Simulator.SimulateMousePress(button);
+        Thread.Sleep(ms);
+        Simulator.SimulateMouseRelease(button);
+    }
+
+    internal void KeyClick(KeyCode key, int ms = 0)
+    {
+        Simulator.SimulateKeyPress(key);
+        Thread.Sleep(ms);
+        Simulator.SimulateKeyRelease(key);
     }
 }

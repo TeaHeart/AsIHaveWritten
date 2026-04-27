@@ -1,9 +1,10 @@
 ﻿namespace PaddleOcr;
 
 using Microsoft.ML.OnnxRuntime;
-using OpenCvSharp;
+using PaddleOcr.Extensions;
+using System.Drawing;
 
-public class PaddleOcrEngine : IDisposable
+public sealed class PaddleOcrEngine : IDisposable
 {
     private readonly InferenceSession _det;
     private readonly InferenceSession _rec;
@@ -17,7 +18,7 @@ public class PaddleOcrEngine : IDisposable
         if (options == null)
         {
             options = new SessionOptions();
-            options.AppendExecutionProvider_DML(); // 多线程使用 InferenceSession Run 有问题，不使用DML/加锁/new新对象可解决
+            options.AppendExecutionProvider_DML(); // DML 多线程使用 Run 有问题，不使用DML/加锁/new新对象可解决
             options.AppendExecutionProvider_CPU();
         }
 
@@ -32,59 +33,55 @@ public class PaddleOcrEngine : IDisposable
         _rec.Dispose();
     }
 
-    public DetResult[] Detect(Mat image, Rect[]? rois = null)
+    public IReadOnlyList<(Rectangle Box, float Score)> Detect(ReadOnlySpan<byte> image,
+                                                              ReadOnlySpan<long> imageShape,
+                                                              IReadOnlyList<Rectangle> regions)
     {
-        rois ??= [new(0, 0, image.Width, image.Height)];
-        var inputs = Detector.Preprocess(image, rois);
-        using var outputs = RunWithLock(_det, inputs);
-        var result = Detector.Postprocess(outputs, rois);
-        return result;
+        Detector.Preprocess(image, imageShape, regions, out var inputs, out var outputs);
+        using var _1 = inputs;
+        using var _2 = outputs;
+        _det.Run(null, _det.InputNames, inputs, _det.OutputNames, outputs);
+        Detector.Postprocess(outputs, regions, out var boxes);
+        return boxes;
     }
 
-    public RecResult[] Recognize(Mat image, Rect[]? rois = null)
+    public IReadOnlyList<(string Text, float Score)> Recognize(ReadOnlySpan<byte> image,
+                                                               ReadOnlySpan<long> imageShape,
+                                                               IReadOnlyList<Rectangle> boxes)
     {
-        rois ??= [new(0, 0, image.Width, image.Height)];
-        var inputs = Recognizer.Preprocess(image, rois);
-        using var outputs = RunWithLock(_rec, inputs);
-        var result = Recognizer.Postprocess(outputs, _dict);
-        return result;
+        Recognizer.Preprocess(image, imageShape, boxes, out var inputs, out var outputs);
+        using var _1 = inputs;
+        using var _2 = outputs;
+        _rec.Run(null, _rec.InputNames, inputs, _rec.OutputNames, outputs);
+        Recognizer.Postprocess(outputs, _dict, out var texts);
+        return texts;
     }
 
-    public RecResult[] Recognize(Mat image, DetResult[] dets)
+    public IReadOnlyList<((Rectangle Box, float Score) Det, (string Text, float Score) Rec)> DetectAndRecognize(ReadOnlySpan<byte> image,
+                                                                                                                ReadOnlySpan<long> imageShape,
+                                                                                                                IReadOnlyList<Rectangle> regions)
     {
-        return Recognize(image, dets.Select(x => x.Box).ToArray());
-    }
-
-    public OcrResult[] DetectAndRecognize(Mat image)
-    {
-        var dets = Detect(image);
-        if (dets.Length == 0)
+        var boxes = Detect(image, imageShape, regions);
+        if (boxes.Count == 0)
         {
             return [];
         }
-        var recs = Recognize(image, dets);
-        return dets.Zip(recs, (det, rec) => new OcrResult(det, rec)).ToArray();
+        var texts = Recognize(image, imageShape, boxes.Select(x => x.Box).ToArray());
+        return boxes.Zip(texts).ToList();
     }
 
-    public static void DrawBoxes(Mat image, DetResult[] dets)
+    public IReadOnlyList<(Rectangle Box, float Score)> Detect(Bitmap bitmap, IReadOnlyList<Rectangle> regions)
     {
-        foreach (var item in dets)
-        {
-            var color = item.Score switch
-            {
-                > 0.8f => Scalar.Green,
-                > 0.6f => Scalar.Yellow,
-                _ => Scalar.Red,
-            };
-            image.Rectangle(item.Box, color);
-        }
+        return Detect(bitmap.ToBytes(out var imageShape), imageShape, regions);
     }
 
-    private static IDisposableReadOnlyCollection<DisposableNamedOnnxValue> RunWithLock(InferenceSession session, NamedOnnxValue[] inputs)
+    public IReadOnlyList<(string Text, float Score)> Recognize(Bitmap bitmap, IReadOnlyList<Rectangle> boxes)
     {
-        lock (session)
-        {
-            return session.Run(inputs);
-        }
+        return Recognize(bitmap.ToBytes(out var imageShape), imageShape, boxes);
+    }
+
+    public IReadOnlyList<((Rectangle Box, float Score) Det, (string Text, float Score) Rec)> DetectAndRecognize(Bitmap bitmap, IReadOnlyList<Rectangle> regions)
+    {
+        return DetectAndRecognize(bitmap.ToBytes(out var imageShape), imageShape, regions);
     }
 }

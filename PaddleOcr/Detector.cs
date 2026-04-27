@@ -2,106 +2,255 @@
 
 using Microsoft.ML.OnnxRuntime;
 using Microsoft.ML.OnnxRuntime.Tensors;
-using OpenCvSharp;
+using System.Drawing;
 
-public static class Detector
+internal static class Detector
 {
-    public static NamedOnnxValue[] Preprocess(Mat image, Rect[] rois)
+    private static void CreateOrtValue(IReadOnlyList<Rectangle> regions, out OrtValue inputOrt, out OrtValue outputOrt)
     {
-        var maxHeight = rois.Max(x => x.Height);
-        var maxWidth = rois.Max(x => x.Width);
-        // 需为32的倍数
+        // 统一所有区域宽高
+        var maxHeight = regions.Max(x => x.Height);
+        var maxWidth = regions.Max(x => x.Width);
+        // 调整为32的倍数
         var blockSize = 32;
-        var newHeight = (maxHeight + blockSize - 1) / blockSize * blockSize;
-        var newWidth = (maxWidth + blockSize - 1) / blockSize * blockSize;
-        // 一个输入 [-1, 1, -1, -1] 数量，通道，高，宽
-        var tensor = new DenseTensor<float>([rois.Length, 3, newHeight, newWidth]);
-        // 预计算
-        var dim = tensor.Dimensions;
-        var heightStride = dim[3];
-        var channelStride = dim[2] * heightStride;
-        var batchStride = dim[1] * channelStride;
+        var newHeight = maxHeight + blockSize - maxHeight % blockSize;
+        var newWidth = maxWidth + blockSize - maxWidth % blockSize;
 
-        unsafe
+        // 一个输入 [-1, 1, -1, -1] 数量 通道 高 宽
+        // 一个输出 [-1, 1, -1, -1] 数量 通道 高 宽
+        var inputShape = new long[] { regions.Count, 3, newHeight, newWidth };
+        var outputShape = new long[] { regions.Count, 1, newHeight, newWidth };
+
+        var inputArray = new float[ShapeUtils.GetSizeForShape(inputShape)];
+        var outputArray = new float[ShapeUtils.GetSizeForShape(outputShape)];
+
+        inputOrt = OrtValue.CreateTensorValueFromMemory(inputArray, inputShape);
+
+        try
         {
-            for (int b = 0; b < rois.Length; b++)
-            {
-                using var roiMat = image[rois[b]];
-
-                roiMat.ForEachAsVec4b((value, position) =>
-                {
-                    var h = position[0];
-                    var w = position[1];
-                    var index = b * batchStride + 0 * channelStride + h * heightStride + w;
-
-                    var span = tensor.Buffer.Span;
-                    span[index + 0 * channelStride] = value->Item0 / 255f; // B
-                    span[index + 1 * channelStride] = value->Item1 / 255f; // G
-                    span[index + 2 * channelStride] = value->Item2 / 255f; // R
-                });
-            }
+            outputOrt = OrtValue.CreateTensorValueFromMemory(outputArray, outputShape);
         }
-
-        return [NamedOnnxValue.CreateFromTensor("x", tensor)];
+        catch
+        {
+            inputOrt.Dispose();
+            throw;
+        }
     }
 
-    public static DetResult[] Postprocess(IReadOnlyCollection<DisposableNamedOnnxValue> outputs, Rect[] rois)
+    private static void FillInput(ReadOnlySpan<byte> image,
+                                  ReadOnlySpan<long> imageShape,
+                                  IReadOnlyList<Rectangle> regions,
+                                  Span<float> input,
+                                  ReadOnlySpan<long> inputShape)
     {
-        // 一个输出 [-1, 1, -1, -1] 数量，通道，高，宽
-        var tensor = (DenseTensor<float>)outputs.First(x => x.Name == "fetch_name_0").Value;
-        // 预计算
-        var dim = tensor.Dimensions;
-        var heightStride = dim[3];
-        var channelStride = dim[2] * heightStride;
-        var batchStride = dim[1] * channelStride;
-        var result = new DetResult[dim[0]][];
+        // 一个输入 [-1, 1, -1, -1] 数量 通道 高 宽
+        var scale = 1f / 255f;
+        var mean = new[] { 0.485f, 0.456f, 0.406f };
+        var std = new[] { 0.229f, 0.224f, 0.225f };
 
-        for (int b = 0; b < dim[0]; b++)
+        var imageStrides = ShapeUtils.GetStrides(imageShape);
+        var (rowStride, channels, _) = ((int)imageStrides[0], (int)imageStrides[1], (int)imageStrides[2]);
+        var inputStrides = ShapeUtils.GetStrides(inputShape);
+        var (batchStride, channelsStride, heightStride, _) = ((int)inputStrides[0], (int)inputStrides[1], (int)inputStrides[2], (int)inputStrides[3]);
+
+        for (int batch = 0; batch < regions.Count; batch++)
         {
-            using var detImage = new Mat(dim[2], dim[3], MatType.CV_8UC1);
-
-            unsafe
+            var batchStart = batch * batchStride;
+            var region = regions[batch];
+            var regionStart = region.Y * rowStride + region.X * channels;
+            for (int row = 0; row < region.Height; row++)
             {
-                detImage.ForEachAsByte((value, position) =>
+                var rowStart = regionStart + row * rowStride;
+                var heightStart = batchStart + 0 * channelsStride + row * heightStride;
+                for (int column = 0; column < region.Width; column++)
                 {
-                    var h = position[0];
-                    var w = position[1];
-                    var index = b * batchStride + 0 * channelStride + h * heightStride + w;
-
-                    var span = tensor.Buffer.Span;
-                    *value = (byte)(span[index + 0 * channelStride] * 255);
-                });
+                    var imageStart = rowStart + column * channels;
+                    var inputStart = heightStart + column;
+                    // BGR 顺序, 但 paddle 源码默认用 RGB 的 mean 和 std 😅
+                    input[inputStart + 0 * channelsStride] = (image[imageStart + 0] * scale - mean[0]) / std[0];
+                    input[inputStart + 1 * channelsStride] = (image[imageStart + 1] * scale - mean[1]) / std[1];
+                    input[inputStart + 2 * channelsStride] = (image[imageStart + 2] * scale - mean[2]) / std[2];
+                }
             }
+        }
+    }
 
-            detImage.FindContours(out var contours, out var _, RetrievalModes.External, ContourApproximationModes.ApproxNone);
-            var roi = rois[b];
-            var basePoint = roi.Location;
-            var boundary = roi - basePoint;
+    internal static void Preprocess(ReadOnlySpan<byte> image,
+                                    ReadOnlySpan<long> imageShape,
+                                    IReadOnlyList<Rectangle> regions,
+                                    out IDisposableReadOnlyCollection<OrtValue> inputs,
+                                    out IDisposableReadOnlyCollection<OrtValue> outputs)
+    {
+        // 一个输入 [-1, 1, -1, -1] 数量 通道 高 宽
+        // 一个输出 [-1, 1, -1, -1] 数量 通道 高 宽
+        CreateOrtValue(regions, out var input, out var output);
 
-            result[b] = contours.Select(x =>
-            {
-                // 最小外接矩形
-                var box = Cv2.BoundingRect(x);
+        try
+        {
+            FillInput(image,
+                      imageShape,
+                      regions,
+                      input.GetTensorMutableDataAsSpan<float>(),
+                      input.GetTensorTypeAndShape().Shape);
+            inputs = new DisposableList<OrtValue>([input]);
+            outputs = new DisposableList<OrtValue>([output]);
+        }
+        catch
+        {
+            input.Dispose();
+            output.Dispose();
+            throw;
+        }
+    }
 
-                // 计算平均分
-                using var boxMat = detImage[box];
-                var score = (float)boxMat.Mean().Val0 / 255;
-
-                // 扩展矩形
-                var expendSize = box.Height / 2;
-                box.Inflate(expendSize, expendSize);
-                box &= boundary;
-
-                // 还原x,y坐标
-                box += basePoint;
-                return new DetResult { Box = box, Score = score };
-            }).Where(x => x.Score > 0.6f)
-              .ToArray();
+    private static void FindBounds(ReadOnlySpan<float> span,
+                                   int row,
+                                   int column,
+                                   int height,
+                                   int width,
+                                   int heightStride,
+                                   float thresh,
+                                   Span<bool> visited,
+                                   ref float sum,
+                                   ref int count,
+                                   ref Rectangle bounds)
+    {
+        if (!(0 <= row && row < height && 0 <= column && column < width))
+        {
+            return;
         }
 
-        return result.SelectMany(x => x)
-                     .OrderBy(x => x.Box.Y)
-                     .ThenBy(x => x.Box.X)
-                     .ToArray();
+        var index = row * heightStride + column;
+        if (visited[index])
+        {
+            return;
+        }
+
+        visited[index] = true;
+        var value = span[index];
+        if (!(value >= thresh))
+        {
+            return;
+        }
+
+        sum += value;
+        count++;
+
+        // 更新最小外接矩形
+        bounds = Rectangle.Union(bounds, new(column, row, 0, 0));
+
+        // 上 右 下 左
+        FindBounds(span, row - 1, column, height, width, heightStride, thresh, visited, ref sum, ref count, ref bounds);
+        FindBounds(span, row, column + 1, height, width, heightStride, thresh, visited, ref sum, ref count, ref bounds);
+        FindBounds(span, row + 1, column, height, width, heightStride, thresh, visited, ref sum, ref count, ref bounds);
+        FindBounds(span, row, column - 1, height, width, heightStride, thresh, visited, ref sum, ref count, ref bounds);
+    }
+
+    private static void FindAllBounds(ReadOnlySpan<float> output,
+                                      ReadOnlySpan<long> outputShape,
+                                      IReadOnlyList<Rectangle> regions,
+                                      out IReadOnlyList<(Rectangle Box, float Score)> boxes)
+    {
+        // 一个输出 [-1, 1, -1, -1] 数量 通道 高 宽
+        var thresh = 0.3f;
+        var boxThresh = 0.6f;
+        var unclipRatio = 1.5f - 0.5f;
+        var maxCandidates = 1000;
+
+        var outputStrides = ShapeUtils.GetStrides(outputShape);
+        var (batchStride, _, heightStride, _) = ((int)outputStrides[0], (int)outputStrides[1], (int)outputStrides[2], (int)outputStrides[3]);
+        var list = new List<(Rectangle Box, float Score)>(maxCandidates);
+
+        for (int batch = 0; batch < regions.Count; batch++)
+        {
+            var batchStart = batch * batchStride;
+            var region = regions[batch];
+            var (x, y, width, height) = (region.X, region.Y, region.Width, region.Height);
+            var visited = new bool[height * heightStride];
+
+            for (int row = 0; row < height; row++)
+            {
+                var rowStart = row * heightStride;
+                for (int column = 0; column < width; column++)
+                {
+                    var index = rowStart + column;
+                    if (!visited[index] && output[index] >= thresh)
+                    {
+                        var sub = output.Slice(batchStart, batchStride);
+                        var sum = 0f;
+                        var count = 0;
+                        var bounds = new Rectangle(column, row, 0, 0);
+                        FindBounds(sub, row, column, height, width, heightStride, thresh, visited, ref sum, ref count, ref bounds);
+
+                        var score = count != 0 ? sum / count : 0;
+                        if (score >= boxThresh && bounds.Height * bounds.Width > 0)
+                        {
+                            var expand = (int)(bounds.Height * unclipRatio);
+                            bounds.Inflate(expand, expand); // 扩大
+                            bounds.Offset(x, y); // 还原坐标
+                            bounds.Intersect(region); // 与边界交集
+                            list.Add((bounds, score));
+                        }
+                    }
+                }
+            }
+        }
+
+        boxes = list; // TODO 取前1000, 排序 测试全都要
+    }
+
+    private static void CopyToGray(ReadOnlySpan<float> output,
+                                   ReadOnlySpan<long> outputShape,
+                                   IReadOnlyList<Rectangle> regions,
+                                   ReadOnlySpan<long> imageShape,
+                                   out byte[] image)
+    {
+        // 一个输出 [-1, 1, -1, -1] 数量 通道 高 宽
+        var outputStrides = ShapeUtils.GetStrides(outputShape);
+        var (batchStride, channelsStride, heightStride, _) = ((int)outputStrides[0], (int)outputStrides[1], (int)outputStrides[2], (int)outputStrides[3]);
+        var imageStrides = ShapeUtils.GetStrides(imageShape);
+        var (rowStride, channels, _) = ((int)imageStrides[0], (int)imageStrides[1], (int)imageStrides[2]);
+        image = new byte[ShapeUtils.GetSizeForShape(imageShape)];
+
+        for (int batch = 0; batch < regions.Count; batch++)
+        {
+            var batchStart = batch * batchStride;
+            var region = regions[batch];
+            var regionStart = region.Y * rowStride + region.X * channels;
+            for (int row = 0; row < region.Height; row++)
+            {
+                var heightStart = batchStart + 0 * channelsStride + row * heightStride;
+                var rowStart = regionStart + row * rowStride;
+                for (int column = 0; column < region.Width; column++)
+                {
+                    var outputStart = heightStart + column;
+                    var imageStart = rowStart + column * channels;
+                    image[imageStart] = (byte)(output[outputStart] * byte.MaxValue);
+                }
+            }
+        }
+    }
+
+    internal static void Postprocess(IDisposableReadOnlyCollection<OrtValue> outputs,
+                                     IReadOnlyList<Rectangle> regions,
+                                     out IReadOnlyList<(Rectangle Box, float Score)> boxes)
+    {
+        // 一个输出 [-1, 1, -1, -1] 数量 通道 高 宽
+        var outputShape = outputs[0].GetTensorTypeAndShape().Shape;
+        var output = outputs[0].GetTensorDataAsSpan<float>();
+
+        FindAllBounds(output, outputShape, regions, out boxes);
+    }
+
+    internal static void Postprocess(IDisposableReadOnlyCollection<OrtValue> outputs,
+                                     IReadOnlyList<Rectangle> regions,
+                                     ReadOnlySpan<long> imageShape,
+                                     out byte[] image)
+    {
+        // 一个输出 [-1, 1, -1, -1] 数量 通道 高 宽
+        var outputShape = outputs[0].GetTensorTypeAndShape().Shape;
+        var output = outputs[0].GetTensorDataAsSpan<float>();
+
+        CopyToGray(output, outputShape, regions, imageShape, out image);
     }
 }

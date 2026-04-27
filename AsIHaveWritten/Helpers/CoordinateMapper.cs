@@ -2,17 +2,17 @@
 
 using System.Drawing;
 
-public readonly struct CoordinateMapper
+internal readonly struct CoordinateMapper
 {
-    public Rectangle Source { get; init; } = new(0, 0, 1920, 1080);
-    public Rectangle Target { get; init; }
-    public CoordinateMapper NormalizedSource => new() { Source = new(Point.Empty, Source.Size), Target = Target };
-    public CoordinateMapper NormalizedTarget => new() { Source = Source, Target = new(Point.Empty, Target.Size) };
-    public CoordinateMapper Normalized => new() { Source = new(Point.Empty, Source.Size), Target = new(Point.Empty, Target.Size) };
-    public CoordinateMapper Reversed => new() { Source = Target, Target = Source };
+    internal Rectangle Source { get; init; } = new(0, 0, 1920, 1080);
+    internal Rectangle Target { get; init; }
+    internal CoordinateMapper NormalizedSource => new() { Source = new(Point.Empty, Source.Size), Target = Target };
+    internal CoordinateMapper NormalizedTarget => new() { Source = Source, Target = new(Point.Empty, Target.Size) };
+    internal CoordinateMapper Normalized => new() { Source = new(Point.Empty, Source.Size), Target = new(Point.Empty, Target.Size) };
+    internal CoordinateMapper Reversed => new() { Source = Target, Target = Source };
     public CoordinateMapper() { }
 
-    public Point Map(Point src)
+    internal Point Map(Point src)
     {
         var fx = (src.X - Source.X) / (float)Source.Width;
         var fy = (src.Y - Source.Y) / (float)Source.Height;
@@ -23,7 +23,7 @@ public readonly struct CoordinateMapper
         return new(x, y);
     }
 
-    public Size Map(Size src)
+    internal Size Map(Size src)
     {
         var fw = src.Width / (float)Source.Width;
         var fh = src.Height / (float)Source.Height;
@@ -34,7 +34,7 @@ public readonly struct CoordinateMapper
         return new(w, h);
     }
 
-    public Rectangle Map(Rectangle src)
+    internal Rectangle Map(Rectangle src)
     {
         return new(Map(src.Location), Map(src.Size));
     }
