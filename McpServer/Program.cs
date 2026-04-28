@@ -6,6 +6,7 @@ using Microsoft.AspNetCore.Builder;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using PaddleOcr;
+using OmniParser;
 using SharpHook;
 using System.Diagnostics;
 using System.Security.Principal;
@@ -18,6 +19,15 @@ internal class Program
         var builder = WebApplication.CreateBuilder(args);
         builder.Logging.SetMinimumLevel(LogLevel.Debug);
         builder.Services.AddSingleton<WindowMonitor>(_ => new WindowMonitor("StarRail"));
+        builder.Services.AddSingleton<OmniParserEngine>(_ =>
+        {
+            var baseDir = AppContext.BaseDirectory;
+            return new OmniParserEngine(
+                yoloModelPath: Path.Combine(baseDir, "Resources", "icon_detect.onnx"),
+                detModelPath: Path.Combine(baseDir, "Resources", "ppocr", "PP-OCRv5_mobile_det_infer.onnx"),
+                recModelPath: Path.Combine(baseDir, "Resources", "ppocr", "PP-OCRv5_mobile_rec_infer.onnx"),
+                wordDictPath: Path.Combine(baseDir, "Resources", "ppocr", "characterDict.txt"));
+        });
         builder.Services.AddSingleton<PaddleOcrEngine>();
         builder.Services.AddSingleton<IEventSimulator, EventSimulator>();
         builder.Services.AddMcpServer()

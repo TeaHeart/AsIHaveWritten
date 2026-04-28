@@ -5,16 +5,19 @@ using Common.Helpers;
 using Microsoft.Extensions.Logging;
 using ModelContextProtocol.Server;
 using PaddleOcr;
+using OmniParser;
 using SharpHook;
 using SharpHook.Data;
 using System.ComponentModel;
 using System.Drawing;
 
 public record OcrResult(Rectangle Box, string Text, float Score);
+public record OmniParseResult(int Index, string Type, Rectangle Box, string? Content, bool Interactivity);
 
 [McpServerToolType]
 public class WindowTools(WindowMonitor monitor,
                          PaddleOcrEngine engine,
+                         OmniParserEngine omniParser,
                          IEventSimulator simulator,
                          ILogger<WindowTools> logger)
 {
@@ -41,8 +44,33 @@ public class WindowTools(WindowMonitor monitor,
         var results = engine.DetectAndRecognize(image, [new(0, 0, image.Width, image.Height)]);
         var ocrResults = results.Select(x => new OcrResult(x.Det.Box, x.Rec.Text, x.Rec.Score)).ToArray();
 
-        logger.LogDebug("{} ...", string.Join("\n", ocrResults.Take(3)));
+        logger.LogDebug("{}", string.Join("\n", ocrResults.AsEnumerable()));
         return ocrResults;
+    }
+
+    [McpServerTool]
+    [Description("解析当前窗口界面，返回所有UI元素（按钮、图标、文本）的结构化列表")]
+    public OmniParseResult[] ParseScreen()
+    {
+        RequireWindowForeground();
+
+        using var image = monitor.Screenshot;
+        if (image == null)
+        {
+            return [];
+        }
+
+        var result = omniParser.ParseScreen(image);
+        var items = result.Elements.Select((e, i) => new OmniParseResult(
+            Index: i,
+            Type: e.Type,
+            Box: e.Box,
+            Content: e.Content,
+            Interactivity: e.Interactivity
+        )).ToArray();
+
+        logger.LogDebug("{}", string.Join("\n", items.AsEnumerable()));
+        return items;
     }
 
     [McpServerTool]
@@ -78,6 +106,8 @@ public class WindowTools(WindowMonitor monitor,
     public void KeyClick(KeyCode code)
     {
         RequireWindowForeground();
+
+        logger.LogDebug("点击: {}", code);
 
         simulator.SimulateKeyPress(code);
         simulator.SimulateKeyRelease(code);

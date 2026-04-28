@@ -16,6 +16,12 @@
   <ItemGroup>
     <ProjectReference Include="..\Common\Common.csproj" />
     <ProjectReference Include="..\PaddleOcr\PaddleOcr.csproj" />
+    <ProjectReference Include="..\OmniParser\OmniParser.csproj" />
   </ItemGroup>
-    
+
+  <ItemGroup>
+    <Content Include="..\OmniParser\Resources\icon_detect.onnx" Link="Resources\icon_detect.onnx">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </Content>
+  </ItemGroup>
 </Project>
