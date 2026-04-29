@@ -19,16 +19,8 @@ internal class Program
         var builder = WebApplication.CreateBuilder(args);
         builder.Logging.SetMinimumLevel(LogLevel.Debug);
         builder.Services.AddSingleton<WindowMonitor>(_ => new WindowMonitor("StarRail"));
-        builder.Services.AddSingleton<OmniParserEngine>(_ =>
-        {
-            var baseDir = AppContext.BaseDirectory;
-            return new OmniParserEngine(
-                yoloModelPath: Path.Combine(baseDir, "Resources", "icon_detect.onnx"),
-                detModelPath: Path.Combine(baseDir, "Resources", "ppocr", "PP-OCRv5_mobile_det_infer.onnx"),
-                recModelPath: Path.Combine(baseDir, "Resources", "ppocr", "PP-OCRv5_mobile_rec_infer.onnx"),
-                wordDictPath: Path.Combine(baseDir, "Resources", "ppocr", "characterDict.txt"));
-        });
-        builder.Services.AddSingleton<PaddleOcrEngine>();
+        builder.Services.AddSingleton<OmniParserEngine>(_ => new());
+        builder.Services.AddSingleton<PaddleOcrEngine>(_ => new());
         builder.Services.AddSingleton<IEventSimulator, EventSimulator>();
         builder.Services.AddMcpServer()
                         .WithHttpTransport()

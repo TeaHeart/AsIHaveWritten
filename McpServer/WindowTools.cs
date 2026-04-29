@@ -1,18 +1,18 @@
-namespace McpServer;
+﻿namespace McpServer;
 
 using Common;
 using Common.Helpers;
 using Microsoft.Extensions.Logging;
 using ModelContextProtocol.Server;
-using PaddleOcr;
 using OmniParser;
+using PaddleOcr;
 using SharpHook;
 using SharpHook.Data;
 using System.ComponentModel;
 using System.Drawing;
 
-public record OcrResult(Rectangle Box, string Text, float Score);
-public record OmniParseResult(int Index, string Type, Rectangle Box, string? Content, bool Interactivity);
+public readonly record struct OcrResult(Rectangle Box, string Text, float Score);
+public readonly record struct OmniResult(Rectangle Box, float Score);
 
 [McpServerToolType]
 public class WindowTools(WindowMonitor monitor,
@@ -50,7 +50,7 @@ public class WindowTools(WindowMonitor monitor,
 
     [McpServerTool]
     [Description("解析当前窗口界面，返回所有UI元素（按钮、图标、文本）的结构化列表")]
-    public OmniParseResult[] ParseScreen()
+    public ScreenElement[] ParseScreen()
     {
         RequireWindowForeground();
 
@@ -60,17 +60,17 @@ public class WindowTools(WindowMonitor monitor,
             return [];
         }
 
-        var result = omniParser.ParseScreen(image);
-        var items = result.Elements.Select((e, i) => new OmniParseResult(
-            Index: i,
-            Type: e.Type,
-            Box: e.Box,
-            Content: e.Content,
-            Interactivity: e.Interactivity
-        )).ToArray();
+        var regions = new[] { new Rectangle(0, 0, image.Width, image.Height) };
+        var iconResults = omniParser.Detect(image)
+            .Select(x => new OmniResult(x.Box, x.Score))
+            .ToArray();
+        var ocrResults = engine.DetectAndRecognize(image, regions)
+            .Select(x => new OcrResult(x.Det.Box, x.Rec.Text, x.Rec.Score))
+            .ToArray();
+        var elements = ScreenElementMerger.Merge(iconResults, ocrResults).ToArray();
 
-        logger.LogDebug("{}", string.Join("\n", items.AsEnumerable()));
-        return items;
+        logger.LogDebug("{}", string.Join("\n", elements.AsEnumerable()));
+        return elements;
     }
 
     [McpServerTool]
