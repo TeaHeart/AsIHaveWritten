@@ -1,4 +1,4 @@
-namespace OmniParser;
+﻿namespace OmniParser;
 
 using OmniParser.Models;
 using Microsoft.ML.OnnxRuntime;
@@ -9,6 +9,7 @@ public sealed class OmniParserEngine : IDisposable
 {
     private readonly InferenceSession _yoloSession;
     private readonly PaddleOcrEngine _ocrEngine;
+    private readonly FlorenceCaptioner? _captioner;
     private readonly string[] _yoloInputNames;
     private readonly string[] _yoloOutputNames;
 
@@ -25,14 +26,20 @@ public sealed class OmniParserEngine : IDisposable
         string detModelPath = "Resources/ppocr/PP-OCRv5_mobile_det_infer.onnx",
         string recModelPath = "Resources/ppocr/PP-OCRv5_mobile_rec_infer.onnx",
         string wordDictPath = "Resources/ppocr/characterDict.txt",
+        string florenceModelDir = "Resources/icon_caption",
         SessionOptions? options = null)
     {
         options ??= CreateDefaultSessionOptions();
-
+        // onnx社区的那个model.onnx是CPU版本的，现在这个是ai重新导出的
         _yoloSession = new InferenceSession(yoloModelPath, options);
         _yoloInputNames = [_yoloSession.InputNames[0]];
         _yoloOutputNames = [_yoloSession.OutputNames[0]];
         _ocrEngine = new PaddleOcrEngine(detModelPath, recModelPath, wordDictPath, options);
+
+        if (florenceModelDir != null && Directory.Exists(florenceModelDir))
+        {
+            _captioner = new FlorenceCaptioner(florenceModelDir, options);
+        }
     }
 
     public ParsedScreen ParseScreen(Bitmap screenshot)
@@ -66,7 +73,31 @@ public sealed class OmniParserEngine : IDisposable
         // Step 3: 合并框
         var elements = BoxMerger.Merge(yoloBoxes, ocrList, screenshot.Size);
 
-        // Step 4: 标注图像
+        // Step 4: Florence-2 图标描述（对纯图标填充 Content）
+        if (_captioner != null)
+        {
+            var uncaptioned = elements
+                .Where(e => e.FlorenceContent == null && e.OcrContent == null && e.Interactivity)
+                .ToList();
+
+            if (uncaptioned.Count > 0)
+            {
+                var captions = _captioner.CaptionIcons(
+                    screenshot, uncaptioned.Select(e => e.Box).ToList());
+
+                for (int i = 0; i < uncaptioned.Count; i++)
+                {
+                    if (captions[i] != null)
+                    {
+                        var old = uncaptioned[i];
+                        var idx = elements.IndexOf(old);
+                        elements[idx] = old with { FlorenceContent = captions[i] };
+                    }
+                }
+            }
+        }
+
+        // Step 5: 标注图像
         var annotated = BoxAnnotator.Annotate(screenshot, elements);
 
         return new ParsedScreen(annotated, elements);
@@ -76,6 +107,7 @@ public sealed class OmniParserEngine : IDisposable
     {
         _yoloSession?.Dispose();
         _ocrEngine?.Dispose();
+        _captioner?.Dispose();
     }
 
     private static SessionOptions CreateDefaultSessionOptions()

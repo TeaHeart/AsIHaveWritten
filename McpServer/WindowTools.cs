@@ -12,7 +12,7 @@ using System.ComponentModel;
 using System.Drawing;
 
 public record OcrResult(Rectangle Box, string Text, float Score);
-public record OmniParseResult(int Index, string Type, Rectangle Box, string? Content, bool Interactivity);
+public record OmniParseResult(int Index, string Type, Rectangle Box, string? PaddleOcrContent, string? FlorenceContent, bool Interactivity);
 
 [McpServerToolType]
 public class WindowTools(WindowMonitor monitor,
@@ -65,7 +65,8 @@ public class WindowTools(WindowMonitor monitor,
             Index: i,
             Type: e.Type,
             Box: e.Box,
-            Content: e.Content,
+            PaddleOcrContent: e.OcrContent,
+            FlorenceContent: e.FlorenceContent,
             Interactivity: e.Interactivity
         )).ToArray();
 

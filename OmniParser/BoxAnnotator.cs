@@ -1,4 +1,4 @@
-namespace OmniParser;
+﻿namespace OmniParser;
 
 using System.Drawing;
 using System.Drawing.Imaging;

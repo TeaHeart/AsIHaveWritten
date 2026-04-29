@@ -22,11 +22,13 @@ internal class Program
         builder.Services.AddSingleton<OmniParserEngine>(_ =>
         {
             var baseDir = AppContext.BaseDirectory;
+            var florenceDir = Path.Combine(baseDir, "Resources", "icon_caption");
             return new OmniParserEngine(
                 yoloModelPath: Path.Combine(baseDir, "Resources", "icon_detect.onnx"),
                 detModelPath: Path.Combine(baseDir, "Resources", "ppocr", "PP-OCRv5_mobile_det_infer.onnx"),
                 recModelPath: Path.Combine(baseDir, "Resources", "ppocr", "PP-OCRv5_mobile_rec_infer.onnx"),
-                wordDictPath: Path.Combine(baseDir, "Resources", "ppocr", "characterDict.txt"));
+                wordDictPath: Path.Combine(baseDir, "Resources", "ppocr", "characterDict.txt"),
+                florenceModelDir: Directory.Exists(florenceDir) ? florenceDir : null);
         });
         builder.Services.AddSingleton<PaddleOcrEngine>();
         builder.Services.AddSingleton<IEventSimulator, EventSimulator>();

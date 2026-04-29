@@ -1,4 +1,4 @@
-namespace OmniParser;
+﻿namespace OmniParser;
 
 using OmniParser.Models;
 using System.Drawing;
@@ -23,7 +23,8 @@ internal static class BoxMerger
             elements.Add(new ParsedElement(
                 ocr.Box,
                 "text",
-                ocr.Text,
+                OcrContent: ocr.Text,
+                FlorenceContent: null,
                 Interactivity: false,
                 ocr.Score
             ));
@@ -45,7 +46,7 @@ internal static class BoxMerger
             if (containOcr.Count > 0)
             {
                 // 合并被包含的 OCR 文本
-                content = string.Join(" ", containOcr.Select(e => e.Content));
+                content = string.Join(" ", containOcr.Select(e => e.OcrContent));
                 foreach (var ocr in containOcr)
                 {
                     elements.Remove(ocr);
@@ -55,7 +56,8 @@ internal static class BoxMerger
             elements.Add(new ParsedElement(
                 box,
                 "icon",
-                content,
+                OcrContent: content,
+                FlorenceContent: null,
                 Interactivity: true,
                 yolo.Confidence
             ));

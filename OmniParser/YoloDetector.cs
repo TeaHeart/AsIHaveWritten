@@ -1,4 +1,4 @@
-namespace OmniParser;
+﻿namespace OmniParser;
 
 using Microsoft.ML.OnnxRuntime;
 using System.Drawing;

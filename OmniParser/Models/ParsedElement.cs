@@ -1,11 +1,12 @@
-namespace OmniParser.Models;
+﻿namespace OmniParser.Models;
 
 using System.Drawing;
 
 public record ParsedElement(
     Rectangle Box,
     string Type,       // "text" or "icon"
-    string? Content,   // OCR text or icon caption
+    string? OcrContent,
+    string? FlorenceContent,
     bool Interactivity,
     float Score
 );
