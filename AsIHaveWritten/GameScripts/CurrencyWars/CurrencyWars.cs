@@ -3,8 +3,8 @@
 internal class CurrencyWars
 {
     public static void RefreshOpening(GameWindow window,
-                                      Predicate<string> buffCond,
-                                      Predicate<string> invEnvCond,
+                                      IReadOnlyList<string>? debuffExcludes = null,
+                                      IReadOnlyList<string>? envPriority = null,
                                       Mode mode = Mode.Overclock,
                                       int diff = (int)Rank.A7)
     {
@@ -25,14 +25,36 @@ internal class CurrencyWars
             { homePage, () => homePage.StartWar() },
             { modePage, () => modePage.NextStep(mode) },
             { rankPage, () => rankPage.NextStep(diff) },
-            { bossPage, () => context["BuffFlag"] = buffCond(bossPage.NextStep()) },
+            { bossPage, () => context["BuffFlag"] = debuffExcludes is null || bossPage.NextStep(debuffExcludes)},
             { planePage, () => planePage.NextStep() },
-            { invEnvPage, () => context["InvEnvFlag"] = invEnvPage.TrySelect(invEnvCond) },
+            { invEnvPage, () =>
+            {
+                if (envPriority is null)
+                {
+                    if (context.GetValueOrDefault("BuffFlag", false) is bool v1 && v1)
+                    {
+                        // 只刷debuff满足筛选时到投资选择页面就停止
+                        Console.WriteLine("已满足词缀条件");
+                        context["/STOP"] = true;
+                    }
+                    else
+                    {
+                        invEnvPage.TrySelect(["/Any"]);
+                        context["InvEnvFlag"] = true;
+                    }
+                }
+                else
+                {
+                    context["InvEnvFlag"] = invEnvPage.TrySelect(envPriority);
+                }
+            }
+            },
             { preparePage, () =>
             {
                 if (context.GetValueOrDefault("BuffFlag", false) is bool v1 && v1
                  && context.GetValueOrDefault("InvEnvFlag", false) is bool v2 && v2)
                 {
+                    Console.WriteLine("已满足所有条件");
                     context["/STOP"] = true;
                 }
                 else

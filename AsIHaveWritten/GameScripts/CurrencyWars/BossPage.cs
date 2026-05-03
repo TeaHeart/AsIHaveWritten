@@ -16,10 +16,19 @@ internal class BossPage(GameWindow window) : PageBase("货币战争/对手信息
         return expect.Zip(actual).Average(x => StringHelper.GetSimilarity(x.First, x.Second));
     }
 
-    public string NextStep()
+    private string NextStep()
     {
         _window.MouseMove(_nextStep.Location);
         _window.MouseClick();
-        return _window.Recognize([_buff])[0];
+        var debuffs = _window.Recognize([_buff])[0];
+        Console.WriteLine($"{Name}, 词缀: {debuffs}");
+        return debuffs;
+    }
+
+    public bool NextStep(IReadOnlyList<string> debuffExcludes)
+    {
+        var debuffs = NextStep();
+
+        return debuffExcludes.All(x => !debuffs.Contains(x));
     }
 }

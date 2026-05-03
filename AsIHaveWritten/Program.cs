@@ -11,13 +11,33 @@ internal class Program
 {
     static void RunApplication()
     {
+        var debuff = new string[]
+        {
+            "首领强化",
+            "第三位面强化",
+            "第二位面强化",
+            "时间刺客",
+        };
+        var env = new string[]
+        {
+            "英雄登场",
+            "欢愉契约",
+            "战技点契约",
+            "昼之半神概念股",
+            "彩虹时代",
+            "/Refresh", // 后面的优先级低于刷新
+            "蓝海",
+            "经济严重过热",
+            "进化算法",
+        };
+        
         using var win = new GameWindow("StarRail");
         // 手动刷了一下午没有3专家 😅
-        CurrencyWars.RefreshOpening(win, buff => true, inv => inv.Contains("专家")
-                                                 || inv.Contains("银金彩")
-                                                 || (inv.Contains("棱彩") && !inv.Contains("尾彩")),
-                                                 Mode.Overclock,
-                                                 (int)Rank.A7);
+        CurrencyWars.RefreshOpening(win,
+                                    debuff,
+                                    env,
+                                    Mode.Standard,
+                                    (int)Rank.Max);
         UioHookProvider.Instance.Stop();
     }
 

@@ -1,6 +1,8 @@
 ﻿namespace AsIHaveWritten.GameScripts.CurrencyWars;
 
+using Common.Extensions;
 using Common.Helpers;
+using System;
 using System.Drawing;
 
 internal class InvestmentEnvironment(GameWindow window) : PageBase("货币战争/投资环境", window)
@@ -21,7 +23,9 @@ internal class InvestmentEnvironment(GameWindow window) : PageBase("货币战争
 
     private IReadOnlyList<string> GetInvestmentEnvironment()
     {
-        return _window.DetectAndRecognize([_card1, _card2, _card3]);
+        var cards = _window.DetectAndRecognize([_card1, _card2, _card3]);
+        cards.ForEach(x => Console.WriteLine($"{Name}, 投资环境: {x}"));
+        return cards;
     }
 
     private void Refresh()
@@ -49,42 +53,49 @@ internal class InvestmentEnvironment(GameWindow window) : PageBase("货币战争
         _window.MouseClick();
     }
 
-    public bool TrySelect(Predicate<string> cond)
+    private static int FindMatch(IReadOnlyList<string> cards, IReadOnlyList<string> envPriority, bool hasRefresh)
     {
-        var cards = GetInvestmentEnvironment();
-        var index = -1;
-        var blueSeaIndex = -1;
-
-        for (int i = 0; i < cards.Count; i++)
+        foreach (var env in envPriority)
         {
-            if (cond(cards[i]))
+            // 默认选中间
+            if (env == "/Any")
             {
-                index = i;
+                return 1;
+            }
+
+            // 遇到刷新直接跳过，后面都是低于刷新优先级的环境
+            if (env == "/Refresh" && hasRefresh)
+            {
                 break;
+            }
+
+            var index = cards.FindIndex(x => x.Contains(env));
+            if (index >= 0)
+            {
+                return index;
             }
         }
 
+        return -1;
+    }
+
+    public bool TrySelect(IReadOnlyList<string> envPriority)
+    {
+        var cards = GetInvestmentEnvironment();
+        var index = FindMatch(cards, envPriority, true);
+
+        // 首次没有匹配的，或者优先级没有刷新高的，直接刷新
         if (index == -1)
         {
             Refresh();
             Thread.Sleep(1000);
-            cards = GetInvestmentEnvironment();
-            for (int i = 0; i < cards.Count; i++)
-            {
-                if (cond(cards[i]))
-                {
-                    index = i;
-                    break;
-                }
 
-                if (cards[i].Contains("蓝海"))
-                {
-                    blueSeaIndex = i;
-                }
-            }
+            cards = GetInvestmentEnvironment();
+            index = FindMatch(cards, envPriority, false);
         }
 
         var hasMatch = index != -1;
+        var blueSeaIndex = cards.FindIndex(x => x.Contains("蓝海"));
         // 没有匹配默认选蓝海或中间
         if (index == -1)
         {
@@ -106,7 +117,9 @@ internal class InvestmentEnvironment(GameWindow window) : PageBase("货币战争
         if (index == blueSeaIndex)
         {
             Thread.Sleep(1000);
-            hasMatch = cond(_window.DetectAndRecognize([_card2])[0]);
+            var card2 = GetInvestmentEnvironment()[1];
+            hasMatch = envPriority.Any(x => card2.Contains(x));
+
             Select(1);
             Thread.Sleep(1000);
             Confirm();
