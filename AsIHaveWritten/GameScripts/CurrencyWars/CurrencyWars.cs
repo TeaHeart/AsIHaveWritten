@@ -3,8 +3,9 @@
 internal class CurrencyWars
 {
     public static void RefreshOpening(GameWindow window,
-                                      IReadOnlyList<string>? debuffExcludes = null,
-                                      IReadOnlyList<string>? envPriority = null,
+                                      IReadOnlyList<string> debuffExcludes,
+                                      IReadOnlyList<string> envPriority,
+                                      int envHigherCount,
                                       Mode mode = Mode.Overclock,
                                       int diff = (int)Rank.A7)
     {
@@ -25,27 +26,28 @@ internal class CurrencyWars
             { homePage, () => homePage.StartWar() },
             { modePage, () => modePage.NextStep(mode) },
             { rankPage, () => rankPage.NextStep(diff) },
-            { bossPage, () => context["BuffFlag"] = debuffExcludes is null || bossPage.NextStep(debuffExcludes)},
+            { bossPage, () => context["BuffFlag"] = bossPage.NextStep(debuffExcludes)},
             { planePage, () => planePage.NextStep() },
             { invEnvPage, () =>
             {
-                if (envPriority is null)
+                if (context.GetValueOrDefault("BuffFlag") is true)
                 {
-                    if (context.GetValueOrDefault("BuffFlag", false) is bool v1 && v1)
+                    if (envPriority.Count == 0)
                     {
-                        // 只刷debuff满足筛选时到投资选择页面就停止
+                        // debuff过了且没有投资环境筛选，到此就结束
                         Console.WriteLine("已满足词缀条件");
                         context["/STOP"] = true;
                     }
                     else
                     {
-                        invEnvPage.TrySelect(["/Any"]);
-                        context["InvEnvFlag"] = true;
+                        context["InvEnvFlag"] = invEnvPage.TrySelect(envPriority, envHigherCount);
                     }
                 }
                 else
                 {
-                    context["InvEnvFlag"] = invEnvPage.TrySelect(envPriority);
+                    // debuff筛选没过随便选一个，加速这个过程
+                    Console.WriteLine("未满足词缀条件, 快速选择投资环境");
+                    context["InvEnvFlag"] = invEnvPage.TrySelect([], envHigherCount);
                 }
             }
             },

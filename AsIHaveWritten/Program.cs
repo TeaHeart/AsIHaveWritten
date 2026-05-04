@@ -20,14 +20,15 @@ internal class Program
         };
         var env = new string[]
         {
-            "英雄登场",
             "欢愉契约",
             "战技点契约",
-            "昼之半神概念股",
-            "彩虹时代",
-            "/Refresh", // 后面的优先级低于刷新
             "蓝海",
+            "英雄登场",
             "经济严重过热",
+            "命运礼物",
+            "彩虹时代",
+            "银金彩",
+            "昼之半神概念股",
             "进化算法",
         };
         
@@ -36,6 +37,7 @@ internal class Program
         CurrencyWars.RefreshOpening(win,
                                     debuff,
                                     env,
+                                    4,
                                     Mode.Standard,
                                     (int)Rank.Max);
         UioHookProvider.Instance.Stop();

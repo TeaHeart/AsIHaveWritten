@@ -53,22 +53,16 @@ internal class InvestmentEnvironment(GameWindow window) : PageBase("货币战争
         _window.MouseClick();
     }
 
-    private static int FindMatch(IReadOnlyList<string> cards, IReadOnlyList<string> envPriority, bool hasRefresh)
+    private static int FindMatch(IReadOnlyList<string> cards, IReadOnlyList<string> envPriority, int higherCount = int.MaxValue)
     {
-        foreach (var env in envPriority)
+        if (envPriority.Count == 0)
         {
-            // 默认选中间
-            if (env == "/Any")
-            {
-                return 1;
-            }
+            // 无限定选默认中间
+            return 1;
+        }
 
-            // 遇到刷新直接跳过，后面都是低于刷新优先级的环境
-            if (env == "/Refresh" && hasRefresh)
-            {
-                break;
-            }
-
+        foreach (var env in envPriority.Take(higherCount))
+        {
             var index = cards.FindIndex(x => x.Contains(env));
             if (index >= 0)
             {
@@ -79,19 +73,19 @@ internal class InvestmentEnvironment(GameWindow window) : PageBase("货币战争
         return -1;
     }
 
-    public bool TrySelect(IReadOnlyList<string> envPriority)
+    public bool TrySelect(IReadOnlyList<string> envPriority, int higherCount)
     {
         var cards = GetInvestmentEnvironment();
-        var index = FindMatch(cards, envPriority, true);
+        var index = FindMatch(cards, envPriority, higherCount);
 
-        // 首次没有匹配的，或者优先级没有刷新高的，直接刷新
+        // 首次没有匹配的，或者在higherCount个之后的，直接刷新
         if (index == -1)
         {
             Refresh();
             Thread.Sleep(1000);
 
             cards = GetInvestmentEnvironment();
-            index = FindMatch(cards, envPriority, false);
+            index = FindMatch(cards, envPriority);
         }
 
         var hasMatch = index != -1;
@@ -117,8 +111,9 @@ internal class InvestmentEnvironment(GameWindow window) : PageBase("货币战争
         if (index == blueSeaIndex)
         {
             Thread.Sleep(1000);
-            var card2 = GetInvestmentEnvironment()[1];
-            hasMatch = envPriority.Any(x => card2.Contains(x));
+            cards = GetInvestmentEnvironment();
+            index = FindMatch(cards, envPriority);
+            hasMatch = index != -1;
 
             Select(1);
             Thread.Sleep(1000);
